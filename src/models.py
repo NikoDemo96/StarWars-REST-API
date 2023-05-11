@@ -9,12 +9,12 @@ class User(db.Model):
     is_active = db.Column(db.Boolean(), unique=False, nullable=False)
 
     def __repr__(self):
-        return '<User %r>' % self.username
+        return '<User %r>' % self.id
 
     def serialize(self):
         return {
             "id": self.id,
-            "email": self.email,
+            "email": self.email
             # do not serialize the password, its a security breach
         }
 #Modelos para starwars API
@@ -26,10 +26,10 @@ class Character(db.Model):
     eye_color = db.Column(db.String(30), nullable=True, default="N/A")
     hair_color = db.Column(db.String(30), nullable=True, default="N/A")
     gender = db.Column(db.String(30), nullable=True, default="N/A")
-    birth_year = db.Column(db.String(30), nullable=True)
-    height = db.Column(db.Integer, nullable=True)
-    mass = db.Column(db.Integer, nullable=True)
-    homeworld = db.Column(db.String(30), nullable=True)
+    birth_year = db.Column(db.String(30), nullable=True, default="N/A")
+    height = db.Column(db.Integer, nullable=False)
+    mass = db.Column(db.Integer, nullable=False)
+    homeworld = db.Column(db.String(30), nullable=True, default="N/A")
 
 
     #Estos son metodos de visualizacion. Cuando yo pido algo a la base de datos, puedo especificar que me puede traer.
@@ -39,14 +39,14 @@ class Character(db.Model):
     def serialize(self):
         return {
             "id": self.id,
-            "email": self.name,
+            "name": self.name,
             "eye_color": self.eye_color,
             "hair_color": self.hair_color,
             "gender": self.gender,
             "birth_year": self.birth_year,
             "height": self.height,
             "mass": self.mass,
-            "homeworld": self.homeworld,
+            "homeworld": self.homeworld
         }
 
 class Planet(db.Model):
@@ -73,7 +73,30 @@ class Planet(db.Model):
             "diameter": self.diameter,
             "rotation_period": self.rotation_period,
             "orbital_period": self.orbital_period,
-            "gravity": self.gravity,
+            "gravity": self.gravity
         }
 
 
+class Favorites(db.Model):
+    id= db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user = db.relationship("User", backref="favorites")
+
+    planet_id = db.Column(db.Integer, db.ForeignKey("planet.id"), nullable=True)
+    planet = db.relationship("Planet", backref="favorites")
+
+    character_id = db.Column(db.Integer, db.ForeignKey("character.id"), nullable=True)
+    character = db.relationship("Character", backref="favorites")
+
+
+    def __repr__(self):
+        return '<Favorites %r>' % self.id
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "planet_id": self.planet_id,
+            "character_id": self.character_id
+        }

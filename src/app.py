@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Planet, Character
+from models import db, User, Planet, Character, Favorites
 #from models import Person
 
 app = Flask(__name__)
@@ -46,25 +46,158 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+    
+# Get all users
+@app.route("/users", methods=["GET"]) 
+def get_all_users():
+    user_list = User.query.all()
+    serialized_users = [user.serialize() for user in user_list]
+    return jsonify({"users": serialized_users})
+
+#Get all the favorites in general.
+@app.route("/users/favoritesall", methods=["GET"]) 
+def get_all_favorites():
+    favorites_list = Favorites.query.all()
+    serialized_favorites = [favorites.serialize() for favorites in favorites_list]
+    return jsonify ({"favorites": serialized_favorites})
+
+#Get all the favorites that belong to the current user.
+@app.route("/users/favorites", methods=["GET"]) 
+def get_one_favorite(user_id):
+    favorites_exists = Favorites.query.filter_by(user_id=user_id).first()
+    if not character_exists:
+        return{"error": "No existe un favorito para ese id"}
+    return jsonify ({"favorites": favorites_exists.serialize()})
+
+#Add a new favorite planet to the current user with the planet id = planet_id.
+@app.route("/favorite/planets/<int:planet_id>", methods=["POST"]) 
+def add_favorite_planet(planet_id):
+    body = request.json
+    user_id = body.get("user_id", None)
+    if not user_id:
+        return {"error": "todos los campos son requeridos"}, 400
+    favorites_exists = Favorites.query.filter_by(user_id=user_id, planet_id=planet_id).first()
+    print(favorites_exists)
+    if favorites_exists:
+        return{"error": "This planet already exists"}, 400
+
+    new_favorites = Favorites(user_id=user_id, planet_id=planet_id)
+    db.session.add(new_favorites)
+    
+    try:
+        db.session.commit()
+        return jsonify({"msg": "Favorite planet created"}), 201
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"msg":"error"})
 
 
-# Todos los personajes
-@app.route("/character", methods=["GET"])
+#Add new favorite people to the current user with the people id = people_id.
+@app.route("/favorite/people/<int:character_id>", methods=["POST"]) 
+def add_favorite_character(character_id):
+    body = request.json
+    user_id = body.get("user_id", None)
+    if not user_id:
+        return {"error": "todos los campos son requeridos"}, 400
+    favorites_exists = Favorites.query.filter_by(user_id=user_id, character_id=character_id).first()
+    print(favorites_exists)
+    if favorites_exists:
+        return{"error": "This character already existts"}, 400
+    
+    new_favorites = Favorites(user_id=user_id, character_id=character_id)
+    db.session.add(new_favorites)
+
+    try:
+        db.session.commit()
+        return jsonify({"msg":"Favorite character created"}), 201
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"msg":"error"})
+
+# Delete favorite planet with the id = planet_id.
+@app.route("/favorite/planet/<int:planet_id>/<int:user_id>", methods=["DELETE"]) 
+def delete_favorite_planet(planet_id, user_id):
+    favorite_delete = Favorites.query.filter_by(planet_id=planet_id, user_id=user_id).first()
+    if not favorite_delete:
+        return{"error": "Favorite planet doesn't exist"}, 400
+
+    db.session.delete(favorite_delete)
+    try:
+        db.session.commit()
+        return {"msg": "Favorite planet deleted"}, 200
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"error": error})
+    
+# Delete favorite people with the id = people_id.
+@app.route("/favorite/people/<int:character_id>/<int:user_id>", methods=["DELETE"]) 
+def delete_favorite_people(character_id, user_id):
+    favorite_delete = Favorites.query.filter_by(character_id=character_id, user_id=user_id).first()
+    if not favorite_delete:
+        return{"error": "Favorite character doesn't exist"}, 400
+
+    db.session.delete(favorite_delete)
+    try:
+        db.session.commit()
+        return{"msg": "Favorite character deleted"}, 200
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"error": error})
+    
+# Get all the characters
+@app.route("/people", methods=["GET"])
 def get_all_characters():
     character_list = Character.query.all()
     serialized_characters = [character.serialize() for character in character_list]
     return jsonify({"characters": serialized_characters})
 
-@app.route("/character", methods=["POST"])
+# Get one single characters information
+@app.route("/people/<int:id>", methods=["GET"])
+def get_character_by_id(id):
+    character_exists = Character.query.filter_by(id=id).first()
+    if not character_exists:
+        return {"error": "No existe un personaje con ese id"}, 404
+    
+    return jsonify ({"character": character_exists.serialize()})
+
+#Todos los planetas
+@app.route("/planets", methods=["GET"])
+def get_all_planets():
+    # Model.query.all() --> trae todos los elementos
+    planets = Planet.query.all() # Trae todos
+    # nueva_lista = [item.serialize() for item in list]
+    print(planets)
+    serialized_planets = [planet.serialize() for planet in planets] # Comprension de listas
+    print(serialized_planets)
+    return jsonify({"planet": serialized_planets}) # Ahora me trae una lista con 2 planetas
+
+#Trae UN planeta
+@app.route("/planets/<int:id>", methods=['GET'])
+def get_planet_by_id(id):
+    #Model.query.filter_by(campovalor)
+    planet_exists = Planet.query.filter_by(id=id).first()
+    if not planet_exists:
+        return {"error": "No existe un planeta con ese id"}, 404
+
+    return jsonify({"planet": planet_exists.serialize()})
+
+
+# Add Character
+
+@app.route("/people", methods=["POST"])
 def add_character():
     body = request.json
     body_name = body.get("name", None)
     body_eye_color = body.get("eye_color", None)
     body_hair_color = body.get("hair_color", None)
     body_gender = body.get("gender", None)
+    body_birth_year = body.get("birth_year", None)
+    body_height = body.get("height", None)
+    body_mass = body.get("mass", None)
+    body_homeworld = body.get("homeworld", None)
 
     #Validar para verificar que todos los campos eestan siendo enviados. Si falta un campo, manda error.
-    if body_name is None or body_eye_color is None or body_hair_color is None or body_gender is None:
+    if body_name is None or body_eye_color is None or body_hair_color is None or body_gender is None or body_birth_year is None or body_height is None or body_mass is None or body_homeworld is None:
         return {"error": f"todos los campos son requeridos"}, 400
 
     #Validacion para ver si el personaje ya existe
@@ -74,7 +207,7 @@ def add_character():
     
     #Creando una nueva instancia del modelo para agregar un personaje nuevo
     #Una instancia en la clase character es Han Solo, Luke, etc. Una nueva instancia es un nuevo elemento dentro de la clase.
-    new_character = Character(name=body_name, eye_color=body_eye_color, hair_color=body_hair_color, gender=body_gender)
+    new_character = Character(name=body_name, eye_color=body_eye_color, hair_color=body_hair_color, gender=body_gender, birth_year=body_birth_year, height=body_height, mass=body_mass, homeworld=body_homeworld)
 
     db.session.add(new_character)
 
@@ -91,37 +224,7 @@ def add_character():
         return {"error": error}, 500
 
 
-#Hacemos una ruta dinamica para buscar por ID  aun personaje en especifico
-@app.route("/character/<int:id>", methods=["GET"])
-def get_character_by_id(id):
-    character_exists = Character.query.filter_by(id=id).first()
-    if not character_exists:
-        return {"error": "No existe un personaje con ese id"}, 404
-    
-    return jsonify ({"personaje": character_exists.serialize()})
 
-#Todos los planetas
-@app.route("/planets", methods=["GET"])
-def get_planets():
-    # Model.query.all() --> trae todos los elementos
-    planets = Planet.query.all() # Trae todos
-    # nueva_lista = [item.serialize() for item in list]
-    print(planets)
-    serialized_planets = [planet.serialize() for planet in planets] # Comprension de listas
-    print(serialized_planets)
-    return jsonify({"data": serialized_planets}) # Ahora me trae una lista con 2 planetas
-
-#Trae UN planeta
-@app.route("/planet", methods=['GET'])
-def get_planet():
-    test_id = 1
-    #Model.query.filter_by(campovalor)
-    planet = Planet.query.filter_by(id=test_id).one_or_none()
-    print("serializado")
-    print(planet.serialize())
-    print("sin serializar")
-    print(planet)
-    return jsonify({"data": planet.serialize()})
 
 @app.route("/planet", methods=["POST"])
 def add_planet():
@@ -152,7 +255,9 @@ def add_planet():
     print(body)
     #Luego de usar session.add y session.commit, uno suele regresar un jsonify
     #Status 201 --> Es para cuando uno crea algo en la base de datos
-    return jsonify({"data": f"Planeta {body_name} creado con exito"}), 201
+    return jsonify({"planet": f"Planeta {body_name} creado con exito"}), 201
+
+
 
 
 
